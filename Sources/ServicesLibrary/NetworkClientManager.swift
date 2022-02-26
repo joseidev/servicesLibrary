@@ -7,6 +7,11 @@
 
 import Foundation
 
+/**
+ Class with method to make network requests
+ 
+ This class wrapps the network client and applies the interceptors to the network request and response.
+ */
 public struct NetworkClientManager {
     
     private let client: NetworkClient
@@ -15,6 +20,22 @@ public struct NetworkClientManager {
         self.client = client
     }
     
+    /**
+     Method to make request injecting interceptors
+     
+     - Parameter request: A NetworkRequest
+     - Parameter requestInterceptors: These interceptors will modify the request
+     - Parameter responseInterceptors: These interceptores will modify the response
+     - Throws:
+        - NetworkError.network
+        if there is no conexion
+        - NetworkError.timeout
+        if no response is obtained
+        - NetworkError.ErrorData
+        If the service returns status code different to 200...299
+        or no data is received
+     - Returns: A result object modified by the interceptors
+     */
     public func request(_ request: NetworkRequest,
                         requestInterceptors: [NetworkRequestInterceptor],
                         responseInterceptors: [NetworkResponseInterceptor]) throws -> Result<NetworkResponse, NetworkError> {

@@ -8,6 +8,14 @@
 import Foundation
 import SwiftUI
 
+/**
+ Network implementation
+ 
+ This is class is meant to be used with the NetworkClientManager so is possible to use interceptors.
+ It is possible to use the network client directly to make request if you are sure that
+ interceptors are not going to be needed.
+ */
+
 final public class DefaultNetworkClient: NSObject {
 
     private let configuration: NetworkClientConfiguration
