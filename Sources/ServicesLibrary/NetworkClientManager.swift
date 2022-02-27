@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 /**
  Class with method to make network requests
@@ -42,7 +43,7 @@ public struct NetworkClientManager {
         let request = requestInterceptors.reduce(request) { request, interceptor in
             return interceptor.interceptRequest(request)
         }
-        let result = try self.client.request(request)
+        let result: Result<NetworkResponse, NetworkError> = try self.client.request(request)
         let response: Result<NetworkResponse, NetworkError> = try responseInterceptors.reduce(result) { result, interceptor in
             switch result {
             case .success(let response):
@@ -52,5 +53,29 @@ public struct NetworkClientManager {
             }
         }
         return response
+    }
+    
+    /**
+     Method to make request injecting interceptors
+     
+     - Parameter request: A NetworkRequest
+     - Parameter requestInterceptors: These interceptors will modify the request
+     - Throws:
+        - NetworkError.network
+        if there is no conexion
+        - NetworkError.timeout
+        if no response is obtained
+        - NetworkError.ErrorData
+        If the service returns status code different to 200...299
+        or no data is received
+     - Returns: A result object modified by the interceptors
+     */
+    public func request(_ request: NetworkRequest,
+                        requestInterceptors: [NetworkRequestInterceptor]) throws -> AnyPublisher<NetworkResponse, NetworkError> {
+        let request = requestInterceptors.reduce(request) { request, interceptor in
+            return interceptor.interceptRequest(request)
+        }
+        let resultPublisher: AnyPublisher<NetworkResponse, NetworkError> = try self.client.request(request)
+        return resultPublisher
     }
 }
