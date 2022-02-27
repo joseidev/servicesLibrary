@@ -6,12 +6,12 @@
 //
 
 import Foundation
-import SwiftUI
+import Combine
 
 /**
  Network implementation
  
- This is class is meant to be used with the NetworkClientManager so is possible to use interceptors.
+ This class is meant to be used with the NetworkClientManager so is possible to use interceptors.
  It is possible to use the network client directly to make request if you are sure that
  interceptors are not going to be needed.
  */
@@ -20,6 +20,7 @@ final public class DefaultNetworkClient: NSObject {
 
     private let configuration: NetworkClientConfiguration
     private let urlSessionDelegate: DefaulNetworkClientURLSessionDelegate
+    private let cancelableSet = Set<AnyCancellable>()
     
     public init(configuration: NetworkClientConfiguration) {
         self.configuration = configuration
@@ -36,9 +37,9 @@ final public class DefaultNetworkClient: NSObject {
         }
     }
     
-    private func request(url: String, headers: [String: String], body: String?, method: NetworkRequestMethod) throws -> Result<Response, NetworkError> {
+    private func requestWithResult(_ networkRequest: NetworkRequest) throws -> Result<Response, NetworkError> {
         let group = DispatchGroup()
-        let urlRequest = try buildURLRequest(url, headers: headers, method: method, body: body)
+        let urlRequest = try buildURLRequest(networkRequest)
         var result: Result<Response, NetworkError> = .failure(NetworkError.timeout)
         var response: HTTPURLResponse?
         group.enter()
@@ -50,6 +51,10 @@ final public class DefaultNetworkClient: NSObject {
             response = httpResponse as? HTTPURLResponse
             guard let statusCode = (httpResponse as? HTTPURLResponse)?.statusCode else {
                 result = .failure(.unknown)
+                return
+            }
+            if URLError.networkConnectionLost.rawValue == statusCode {
+                result = .failure(.network)
                 return
             }
             let statusCodeRange = self?.configuration.successStatusCodeRange ?? (200...299)
@@ -66,45 +71,62 @@ final public class DefaultNetworkClient: NSObject {
             result = .success(dataTaskResponse)
         }.resume()
         group.wait()
-        if let statusCode = response?.statusCode {
-            try self.evaluateStatusCode(statusCode)
-        }
         return result
+    }
+    
+    private func requestWithPublisher(_ networkRequest: NetworkRequest) throws -> AnyPublisher<NetworkResponse, NetworkError> {
+        let urlRequest = try buildURLRequest(networkRequest)
+        let session = URLSession(configuration: .default, delegate: urlSessionDelegate, delegateQueue: nil)
+        return session.dataTaskPublisher(for: urlRequest)
+            .retry(1)
+            .tryMap { [weak self] data, response in
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw NetworkError.unknown
+                }
+                if URLError.networkConnectionLost.rawValue == httpResponse.statusCode {
+                    throw NetworkError.network
+                }
+                let statusCodeRange = self?.configuration.successStatusCodeRange ?? (200...299)
+                guard statusCodeRange.contains(httpResponse.statusCode) else {
+                    throw NetworkError.error(NetworkError.ErrorData(statusCode: httpResponse.statusCode,
+                                                                     headers: httpResponse.allHeaderFields,
+                                                                     body: data,
+                                                                     urlSessionError: nil))
+                }
+                return Response(data: data, status: httpResponse.statusCode, headers: httpResponse.allHeaderFields)
+            }
+            .mapError { error -> NetworkError in
+                return error as? NetworkError ?? .unknown
+            }
+            .eraseToAnyPublisher()
     }
 }
 
 private extension DefaultNetworkClient {
-    func evaluateStatusCode(_ statusCode: Int) throws {
-        switch statusCode {
-        case URLError.networkConnectionLost.rawValue: throw NetworkError.network
-        default: break
-        }
-    }
-    
-    func buildURLRequest(_ url: String, headers: [String: String], method: NetworkRequestMethod, body: String?) throws -> URLRequest {
-        guard let url = URL(string: url) else { throw NetworkError.unknown }
+    func buildURLRequest(_ networkRequest: NetworkRequest) throws -> URLRequest {
+        guard let url = URL(string: networkRequest.url) else { throw NetworkError.unknown }
         var urlRequest = URLRequest(
             url: url,
             cachePolicy: configuration.cachePolicy ?? .reloadIgnoringLocalAndRemoteCacheData,
             timeoutInterval: configuration.timeoutInterval ?? 60)
-        headers.forEach { key, value in
+        networkRequest.headers.forEach { key, value in
             urlRequest.addValue(value, forHTTPHeaderField: key)
         }
-        if let body = body {
+        if let body = networkRequest.body {
             urlRequest.httpBody = body.data(using: String.Encoding.utf8, allowLossyConversion: true)
         }
-        urlRequest.httpMethod = method.rawValue
+        urlRequest.httpMethod = networkRequest.method.rawValue
         return urlRequest
     }
 }
 
 extension DefaultNetworkClient: NetworkClient {
     public func request(_ request: NetworkRequest) throws -> Result<NetworkResponse, NetworkError> {
-        return try self.request(
-            url: request.url,
-            headers: request.headers,
-            body: request.body,
-            method: request.method
-        ).map({ $0 })
+        return try self.requestWithResult(request).map({ $0 })
+    }
+    
+    public func request(_ request: NetworkRequest) throws -> AnyPublisher<NetworkResponse, NetworkError> {
+        return try self.requestWithPublisher(request)
+            .eraseToAnyPublisher()
     }
 }
