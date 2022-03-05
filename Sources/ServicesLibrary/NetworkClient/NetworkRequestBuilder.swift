@@ -51,4 +51,23 @@ public class NetworkRequestBuilder {
             headers: headers,
             body: urlFormBody)
     }
+    
+    /// Creates a NetworkRequest with the body formatted with JSONEncoder
+    ///  - Returns: Returns a NetworkRequest object
+    public static func buildWithJSONEncodedBody<Body: Encodable>(method: NetworkRequestMethod,
+                                        serviceName: String,
+                                        url: String,
+                                        headers: [String: String],
+                                        body: Body) throws -> NetworkRequest {
+        let encodedBody = try JSONEncoder().encode(body)
+        guard let stringBody = String(data: encodedBody, encoding: .utf8) else {
+            throw BuilderError()
+        }
+        return Request(
+            method: method,
+            serviceName: serviceName,
+            url: url,
+            headers: headers,
+            body: stringBody)
+    }
 }
