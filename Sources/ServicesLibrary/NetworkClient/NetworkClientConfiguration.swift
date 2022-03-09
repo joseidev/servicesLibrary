@@ -14,7 +14,7 @@ public struct NetworkClientConfiguration {
     let timeoutInterval: Double
     let isSSLPinningActive: Bool
     
-    static func getDefaultConfiguration() -> NetworkClientConfiguration {
+    public static func getDefaultConfiguration() -> NetworkClientConfiguration {
         return NetworkClientConfiguration(
             successStatusCodeRange: (200...299),
             cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
