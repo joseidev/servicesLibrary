@@ -19,6 +19,6 @@ public struct NetworkClientConfiguration {
             successStatusCodeRange: (200...299),
             cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
             timeoutInterval: 60,
-            isSSLPinningActive: true)
+            isSSLPinningActive: false)
     }
 }
