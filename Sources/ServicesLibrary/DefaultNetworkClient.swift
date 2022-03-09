@@ -57,8 +57,8 @@ final public class DefaultNetworkClient: NSObject {
                 result = .failure(.network)
                 return
             }
-            let statusCodeRange = self?.configuration.successStatusCodeRange ?? (200...299)
-            guard statusCodeRange.contains(statusCode),
+            guard let statusCodeRange = self?.configuration.successStatusCodeRange,
+                statusCodeRange.contains(statusCode),
                   let dataTaskResponse = data.map( {Response(data: $0, status: statusCode, headers: response?.allHeaderFields)} ) else {
                       let errorData = NetworkError.ErrorData(
                         statusCode: statusCode,
@@ -86,8 +86,8 @@ final public class DefaultNetworkClient: NSObject {
                 if URLError.networkConnectionLost.rawValue == httpResponse.statusCode {
                     throw NetworkError.network
                 }
-                let statusCodeRange = self?.configuration.successStatusCodeRange ?? (200...299)
-                guard statusCodeRange.contains(httpResponse.statusCode) else {
+                guard let statusCodeRange = self?.configuration.successStatusCodeRange,
+                    statusCodeRange.contains(httpResponse.statusCode) else {
                     throw NetworkError.error(NetworkError.ErrorData(statusCode: httpResponse.statusCode,
                                                                      headers: httpResponse.allHeaderFields,
                                                                      body: data,
@@ -107,8 +107,8 @@ private extension DefaultNetworkClient {
         guard let url = URL(string: networkRequest.url) else { throw NetworkError.unknown }
         var urlRequest = URLRequest(
             url: url,
-            cachePolicy: configuration.cachePolicy ?? .reloadIgnoringLocalAndRemoteCacheData,
-            timeoutInterval: configuration.timeoutInterval ?? 60)
+            cachePolicy: configuration.cachePolicy,
+            timeoutInterval: configuration.timeoutInterval)
         networkRequest.headers.forEach { key, value in
             urlRequest.addValue(value, forHTTPHeaderField: key)
         }
