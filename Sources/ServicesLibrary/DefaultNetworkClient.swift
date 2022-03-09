@@ -112,9 +112,7 @@ private extension DefaultNetworkClient {
         networkRequest.headers.forEach { key, value in
             urlRequest.addValue(value, forHTTPHeaderField: key)
         }
-        if let body = networkRequest.body {
-            urlRequest.httpBody = body.data(using: String.Encoding.utf8, allowLossyConversion: true)
-        }
+        urlRequest.httpBody = networkRequest.body
         urlRequest.httpMethod = networkRequest.method.rawValue
         return urlRequest
     }

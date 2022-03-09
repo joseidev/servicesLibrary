@@ -9,7 +9,7 @@ import Foundation
 
 public struct InterceptedRequest: NetworkRequest {
     public var method: NetworkRequestMethod
-    public var body: String?
+    public var body: Data?
     public let serviceName: String
     public let url: String
     public let headers: [String : String]
@@ -18,7 +18,7 @@ public struct InterceptedRequest: NetworkRequest {
                 url: String,
                 headers: [String : String],
                 method: NetworkRequestMethod,
-                body: String?) {
+                body: Data?) {
         self.serviceName = serviceName
         self.url = url
         self.headers = headers

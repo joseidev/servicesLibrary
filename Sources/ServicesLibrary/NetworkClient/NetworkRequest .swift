@@ -12,7 +12,7 @@ public protocol NetworkRequest {
     var serviceName: String { get }
     var url: String { get }
     var headers: [String: String] { get }
-    var body: String? { get }
+    var body: Data? { get }
 }
 
 public enum NetworkRequestMethod: String {

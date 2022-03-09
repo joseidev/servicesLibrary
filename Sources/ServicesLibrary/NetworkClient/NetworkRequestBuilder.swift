@@ -14,7 +14,7 @@ public class NetworkRequestBuilder {
         let serviceName: String
         let url: String
         let headers: [String: String]
-        let body: String?
+        let body: Data?
     }
     
     private struct BuilderError: Error {}
@@ -43,13 +43,14 @@ public class NetworkRequestBuilder {
         var urlComponents = URLComponents()
         let queryItems = body.map({URLQueryItem(name: $0.key, value: $0.value)})
         urlComponents.queryItems = queryItems
-        guard let urlFormBody = urlComponents.query else { throw BuilderError() }
+        guard let urlFormBody = urlComponents.query,
+        let data =  urlFormBody.data(using: String.Encoding.utf8, allowLossyConversion: true) else { throw BuilderError() }
         return Request(
             method: method,
             serviceName: serviceName,
             url: url,
             headers: headers,
-            body: urlFormBody)
+            body: data)
     }
     
     /// Creates a NetworkRequest with the body formatted with JSONEncoder
@@ -60,14 +61,11 @@ public class NetworkRequestBuilder {
                                         headers: [String: String],
                                         body: Body) throws -> NetworkRequest {
         let encodedBody = try JSONEncoder().encode(body)
-        guard let stringBody = String(data: encodedBody, encoding: .utf8) else {
-            throw BuilderError()
-        }
         return Request(
             method: method,
             serviceName: serviceName,
             url: url,
             headers: headers,
-            body: stringBody)
+            body: encodedBody)
     }
 }
